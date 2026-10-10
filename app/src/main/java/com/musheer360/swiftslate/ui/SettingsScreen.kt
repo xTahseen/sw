@@ -89,6 +89,9 @@ fun SettingsScreen(commandManager: CommandManager, prefs: SharedPreferences, key
     var triggerPrefix by remember { mutableStateOf(commandManager.getTriggerPrefix()) }
     var prefixError by remember { mutableStateOf<String?>(null) }
     var temperature by remember { mutableStateOf(prefs.getFloat(PrefKeys.TEMPERATURE, 0.5f)) }
+    var webSearch by remember {
+        mutableStateOf(try { prefs.getBoolean(PrefKeys.WEB_SEARCH, false) } catch (_: Exception) { false })
+    }
 
     val prefixErrorLength = stringResource(R.string.settings_prefix_error_length)
     val prefixErrorWhitespace = stringResource(R.string.settings_prefix_error_whitespace)
@@ -574,6 +577,38 @@ fun SettingsScreen(commandManager: CommandManager, prefs: SharedPreferences, key
                 )
             )
             Spacer(modifier = Modifier.height(rhythm.tightGap))
+        }
+
+        Spacer(modifier = Modifier.height(rhythm.cardGap))
+
+        // Live web search (Gemini only)
+        SlateCard {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_web_search_title),
+                        fontSize = rhythm.emphasisSize,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_web_search_desc),
+                        fontSize = rhythm.bodySize,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = webSearch,
+                    onCheckedChange = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        webSearch = it
+                        prefs.edit().putBoolean(PrefKeys.WEB_SEARCH, it).apply()
+                    }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(rhythm.cardGap))

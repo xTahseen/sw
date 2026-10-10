@@ -17,6 +17,10 @@ This fork runs SwiftSlate as an **LSPosed module** instead of an Android accessi
 - When adding or editing an AI command, turn on **Remember conversation**. The command then keeps its earlier exchanges (last ~10, stored only on your device) and sends them with each new message, so you can chat across several `?trigger` uses.
 - Open the command in the Commands tab to see how many messages it remembers and tap **Clear history**. Turning the switch off, or deleting the command, also erases its history. History is never exported in backups.
 
+**Live web search (new)**
+- Settings → **Live web search** (off by default) lets Gemini use Google Search for current facts such as news, scores and weather. It only applies to the Gemini provider. Groq and custom endpoints have no web access.
+- Only commands in conversation mode (**Remember conversation** on) answer questions; the other commands are strict text rewriters by design.
+
 **Troubleshooting**
 - Dashboard says *Module enabled* forever: the keyboard has not loaded the hook. Check the scope, then force-stop the keyboard.
 - Toast "could not reach the app": on Android 11+ the keyboard may be unable to see SwiftSlate (package visibility). Reinstall with `adb install --force-queryable SwiftSlate.apk`.

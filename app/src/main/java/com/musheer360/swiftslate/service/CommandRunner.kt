@@ -66,6 +66,7 @@ suspend fun runTextCommand(
         return CommandOutcome.Unavailable(context.getString(R.string.toast_custom_not_configured))
     }
     val temperature = prefs.getFloat(PrefKeys.TEMPERATURE, DEFAULT_TEMPERATURE).toDouble()
+    val webSearch = try { prefs.getBoolean(PrefKeys.WEB_SEARCH, false) } catch (_: Exception) { false }
     val useStructuredOutput = System.currentTimeMillis() -
         prefs.getLong(PrefKeys.STRUCTURED_OUTPUT_DISABLED_AT, 0L) > STRUCTURED_OUTPUT_RETRY_MS
 
@@ -101,7 +102,8 @@ suspend fun runTextCommand(
             Transport.GEMINI_NATIVE -> geminiClient.generate(
                 prompt, text, key, model, temperature, useStructuredOutput,
                 thinkingLevel = provider.thinkingLevel(model),
-                history = history)
+                history = history,
+                useWebSearch = webSearch)
         }
 
         result.onSuccess { generated ->

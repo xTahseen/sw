@@ -13,4 +13,6 @@
     <string name="commands_history_badge">· history</string>
     <string name="commands_history_count">%1$d messages remembered</string>
     <string name="commands_history_clear">Clear history</string>
+    <string name="settings_web_search_title">Live web search</string>
+    <string name="settings_web_search_desc">Lets Gemini look things up on Google for current facts such as news, scores or weather. Gemini provider only; counts toward your Gemini quota.</string>
 </resources>

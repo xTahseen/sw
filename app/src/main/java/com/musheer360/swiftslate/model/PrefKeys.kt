@@ -28,6 +28,9 @@ object PrefKeys {
     /** Sampling temperature (Float). */
     const val TEMPERATURE = "temperature"
 
+    /** Boolean: let Gemini ground answers with Google Search (live information). */
+    const val WEB_SEARCH = "web_search"
+
     /** Epoch millis when structured output was last disabled (0 = never). */
     const val STRUCTURED_OUTPUT_DISABLED_AT = "structured_output_disabled_at"
 }

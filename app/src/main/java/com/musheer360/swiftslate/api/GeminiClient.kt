@@ -173,14 +173,17 @@ class GeminiClient {
         temperature: Double,
         useStructuredOutput: Boolean = false,
         thinkingLevel: String? = null,
-        history: List<ChatTurn>? = null
+        history: List<ChatTurn>? = null,
+        useWebSearch: Boolean = false
     ): Result<GenerateResult> = withContext(Dispatchers.IO) {
-        var result = doGenerate(prompt, text, apiKey, model, temperature, useStructuredOutput, thinkingLevel, history)
+        // Google Search grounding cannot be combined with JSON-schema output on most models.
+        val structured = useStructuredOutput && !useWebSearch
+        var result = doGenerate(prompt, text, apiKey, model, temperature, structured, thinkingLevel, history, useWebSearch)
 
         // Retry once for transient network/server errors (with 1.5s backoff)
         if (result.isFailure && result.exceptionOrNull().isTransientNetwork()) {
             kotlinx.coroutines.delay(1500)
-            result = doGenerate(prompt, text, apiKey, model, temperature, useStructuredOutput, thinkingLevel, history)
+            result = doGenerate(prompt, text, apiKey, model, temperature, structured, thinkingLevel, history, useWebSearch)
         }
 
         val cleaned = stripHttpPrefix(result.map { it.text })
@@ -205,7 +208,8 @@ class GeminiClient {
         temperature: Double,
         withStructured: Boolean,
         thinkingLevel: String? = null,
-        history: List<ChatTurn>? = null
+        history: List<ChatTurn>? = null,
+        useWebSearch: Boolean = false
     ): Result<GenerateResult> {
         var connection: HttpURLConnection? = null
         return try {
@@ -247,6 +251,11 @@ class GeminiClient {
                         })
                     })
                 })
+                if (useWebSearch) {
+                    put("tools", JSONArray().apply {
+                        put(JSONObject().apply { put("google_search", JSONObject()) })
+                    })
+                }
                 put("safetySettings", JSONArray().apply {
                     for (cat in arrayOf("HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT", "HARM_CATEGORY_CIVIC_INTEGRITY")) {
                         put(JSONObject().apply {
@@ -300,7 +309,13 @@ class GeminiClient {
                     val content = candidate.optJSONObject("content")
                     val parts = content?.optJSONArray("parts")
                     if (parts != null && parts.length() > 0) {
-                        var resultText = parts.getJSONObject(0).optString("text", "")
+                        // Grounded answers can arrive split over several text parts.
+                        var resultText = buildString {
+                            for (i in 0 until parts.length()) {
+                                val part = parts.getJSONObject(i)
+                                if (!part.optBoolean("thought", false)) append(part.optString("text", ""))
+                            }
+                        }
                         if (resultText.isBlank()) {
                             return Result.failure(Exception("Model returned empty response"))
                         }
