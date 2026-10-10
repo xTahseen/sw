@@ -90,9 +90,10 @@ class CommandManagerTest {
     // --- getCommands ---
 
     @Test
-    fun getCommands_returnsFifteenBuiltInByDefault() {
+    fun getCommands_returnsSixteenBuiltInByDefault() {
         val commands = commandManager.getCommands()
-        assertEquals(15, commands.size)
+        // 6 system + 9 default AI + the seeded ?ask command
+        assertEquals(16, commands.size)
     }
 
     @Test
@@ -117,7 +118,7 @@ class CommandManagerTest {
     fun getCommands_afterAddingCustom_includesIt() {
         commandManager.saveCustomCommand(Command("?myCmd", "do something"))
         val commands = commandManager.getCommands()
-        assertEquals(16, commands.size)
+        assertEquals(17, commands.size)
         assertTrue(commands.any { it.trigger == "?myCmd" })
     }
 

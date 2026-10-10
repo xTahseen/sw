@@ -36,6 +36,8 @@ class CommandManager(context: Context) {
     // accessibility service's bind path, where an escape would kill the whole process (#125).
     private var aiCommandsSeeded =
         try { prefs.getBoolean("ai_commands_seeded", false) } catch (_: Exception) { false }
+    private var askCommandSeeded =
+        try { prefs.getBoolean("ask_command_seeded", false) } catch (_: Exception) { false }
 
     companion object {
         /** Called after any change to commands or the trigger prefix. */
@@ -50,6 +52,11 @@ class CommandManager(context: Context) {
         const val MAX_TRIGGER_LENGTH = 50
         const val MAX_PROMPT_LENGTH = 5_000
         const val MAX_CUSTOM_COMMANDS = 100
+
+        /** Prompt of the seeded "ask" command (runs with live web search). */
+        private const val ASK_PROMPT =
+            "Answer the question or request. Use up-to-date information from the web when it " +
+                "matters (time, date, news, weather, prices, scores). Be accurate and concise."
 
         /**
          * Whether a custom command is storable. Applied by both [saveCustomCommand] and
@@ -129,6 +136,7 @@ class CommandManager(context: Context) {
             newObj.put("prompt", prompt)
             newObj.put("type", obj.optString("type", CommandType.AI.name))
             if (obj.optBoolean("history", false)) newObj.put("history", true)
+            if (obj.optBoolean("web", false)) newObj.put("web", true)
             newArr.put(newObj)
         }
         prefs.edit().putString("custom_commands", newArr.toString()).apply()
@@ -169,12 +177,40 @@ class CommandManager(context: Context) {
         aiCommandsSeeded = true
     }
 
+    /**
+     * One-time: adds an "ask" command that answers questions with live web search. Separate from
+     * [seedDefaultAiCommands] (which only ever runs once per install) so existing users get it
+     * too. Skipped if the user already has a command with that trigger; deleting it afterwards
+     * is respected because the flag is set either way.
+     */
+    private fun seedAskCommand() {
+        val trigger = "${getTriggerPrefix()}ask"
+        val arr = try { JSONArray(prefs.getString("custom_commands", "[]") ?: "[]") } catch (_: Exception) { JSONArray() }
+        val exists = (0 until arr.length()).any { arr.optJSONObject(it)?.optString("trigger") == trigger }
+        val editor = prefs.edit()
+        if (!exists && arr.length() < MAX_CUSTOM_COMMANDS) {
+            arr.put(JSONObject().apply {
+                put("trigger", trigger)
+                put("prompt", ASK_PROMPT)
+                put("type", CommandType.AI.name)
+                put("web", true)
+            })
+            editor.putString("custom_commands", arr.toString())
+            invalidateCache()
+        }
+        editor.putBoolean("ask_command_seeded", true).apply()
+        askCommandSeeded = true
+    }
+
     @Volatile
     private var migrating = false
 
     @Synchronized fun getCommands(): List<Command> {
         if (!aiCommandsSeeded) {
             seedDefaultAiCommands()
+        }
+        if (!askCommandSeeded) {
+            seedAskCommand()
         }
         val now = System.currentTimeMillis()
         val cached = cachedCommands
@@ -201,7 +237,8 @@ class CommandManager(context: Context) {
             if (!trigger.startsWith(prefix)) needsMigration = true
             val type = try { CommandType.valueOf(obj.optString("type", CommandType.AI.name)) } catch (_: Exception) { CommandType.AI }
             customCommands.add(Command(trigger, prompt, false, type,
-                keepHistory = type == CommandType.AI && obj.optBoolean("history", false)))
+                keepHistory = type == CommandType.AI && obj.optBoolean("history", false),
+                webSearch = type == CommandType.AI && obj.optBoolean("web", false)))
         }
         // Self-heal prefix mismatch (e.g. crash between two apply() calls in setTriggerPrefix)
         if (needsMigration && !migrating) {
@@ -248,6 +285,7 @@ class CommandManager(context: Context) {
         newObj.put("prompt", command.prompt)
         newObj.put("type", command.type.name)
         if (command.keepHistory && command.type == CommandType.AI) newObj.put("history", true)
+        if (command.webSearch && command.type == CommandType.AI) newObj.put("web", true)
         newArr.put(newObj)
         prefs.edit().putString("custom_commands", newArr.toString()).apply()
         invalidateCache()
@@ -308,6 +346,7 @@ class CommandManager(context: Context) {
                 out.put("type",
                     if (type == CommandType.TEXT_REPLACER.name) CommandType.TEXT_REPLACER.name else CommandType.AI.name)
                 if (type != CommandType.TEXT_REPLACER.name && obj.optBoolean("history", false)) out.put("history", true)
+                if (type != CommandType.TEXT_REPLACER.name && obj.optBoolean("web", false)) out.put("web", true)
                 cleaned.put(out)
             }
             if (arr.length() > 0 && cleaned.length() == 0) return false

@@ -122,7 +122,8 @@ class ProcessTextViewModel(
                         runTextCommand(
                             getApplication<Application>(), keyManager, geminiClient, openAIClient,
                             command.prompt, selection.text,
-                            historyTrigger = if (command.keepHistory) command.trigger else null
+                            historyTrigger = if (command.keepHistory) command.trigger else null,
+                            answerWithSearch = command.webSearch
                         )
                     }
                 }

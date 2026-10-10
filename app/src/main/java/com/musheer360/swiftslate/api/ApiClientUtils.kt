@@ -71,6 +71,24 @@ internal object ApiClientUtils {
             "message to insert into the text field: no preamble, no markdown code fences, no " +
             "quotation of the user's message. Instructions: " + prompt
 
+    /**
+     * System prompt for "answer" commands (Command.webSearch). The default prompt turns the model
+     * into a rewriter that must never answer the text, which is exactly wrong for a question
+     * like "what's the time in Pakistan". Here the text is a question to answer, and the current
+     * date/time is supplied so relative questions ("today", "tonight") resolve correctly even
+     * before the search tool is consulted.
+     */
+    fun answerSystemPrompt(prompt: String, now: java.time.ZonedDateTime = java.time.ZonedDateTime.now()): String =
+        "You are an assistant replying inside a text field of the user's phone. The user's " +
+            "message is a question or request: answer it directly, using Google Search for " +
+            "anything that may have changed (current time in a place, date, news, weather, " +
+            "prices, scores). Reply with only the text to insert into the field: no preamble, " +
+            "no markdown, no code fences, no sources list, and keep it short unless asked " +
+            "otherwise. The user's current local date and time is " +
+            now.format(java.time.format.DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy, HH:mm")) +
+            " (" + now.zone.id + ", UTC" + now.offset.id.replace("Z", "+00:00") + "). " +
+            "Instructions: " + prompt
+
     fun readResponseBounded(connection: HttpURLConnection): String {
         return connection.inputStream.use { stream ->
             BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { reader ->

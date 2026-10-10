@@ -39,6 +39,9 @@ private const val STRUCTURED_OUTPUT_RETRY_MS = 86_400_000L // re-try structured 
  *
  * @param historyTrigger set for a command with "Remember conversation" on: its earlier exchanges
  *   are sent along as chat turns and, on success, this exchange is remembered. Null = stateless.
+ * @param answerWithSearch the command is an "answer" command (Command.webSearch): the text is a
+ *   question to answer with live Google Search rather than a string to rewrite. Gemini only; other
+ *   providers have no search tool and keep the normal behaviour.
  * @param onFirstAttempt run just before the first request actually goes out — after it is known
  *   that a usable key exists. The service starts its inline spinner here.
  */
@@ -50,6 +53,7 @@ suspend fun runTextCommand(
     prompt: String,
     text: String,
     historyTrigger: String? = null,
+    answerWithSearch: Boolean = false,
     onFirstAttempt: () -> Unit = {}
 ): CommandOutcome {
     // keys_keystore_error rather than a "reinstall" message: the usual cause is the Keystore key
@@ -103,7 +107,8 @@ suspend fun runTextCommand(
                 prompt, text, key, model, temperature, useStructuredOutput,
                 thinkingLevel = provider.thinkingLevel(model),
                 history = history,
-                useWebSearch = webSearch)
+                useWebSearch = webSearch || answerWithSearch,
+                answerMode = answerWithSearch)
         }
 
         result.onSuccess { generated ->

@@ -174,16 +174,17 @@ class GeminiClient {
         useStructuredOutput: Boolean = false,
         thinkingLevel: String? = null,
         history: List<ChatTurn>? = null,
-        useWebSearch: Boolean = false
+        useWebSearch: Boolean = false,
+        answerMode: Boolean = false
     ): Result<GenerateResult> = withContext(Dispatchers.IO) {
         // Google Search grounding cannot be combined with JSON-schema output on most models.
         val structured = useStructuredOutput && !useWebSearch
-        var result = doGenerate(prompt, text, apiKey, model, temperature, structured, thinkingLevel, history, useWebSearch)
+        var result = doGenerate(prompt, text, apiKey, model, temperature, structured, thinkingLevel, history, useWebSearch, answerMode)
 
         // Retry once for transient network/server errors (with 1.5s backoff)
         if (result.isFailure && result.exceptionOrNull().isTransientNetwork()) {
             kotlinx.coroutines.delay(1500)
-            result = doGenerate(prompt, text, apiKey, model, temperature, structured, thinkingLevel, history, useWebSearch)
+            result = doGenerate(prompt, text, apiKey, model, temperature, structured, thinkingLevel, history, useWebSearch, answerMode)
         }
 
         val cleaned = stripHttpPrefix(result.map { it.text })
@@ -209,7 +210,8 @@ class GeminiClient {
         withStructured: Boolean,
         thinkingLevel: String? = null,
         history: List<ChatTurn>? = null,
-        useWebSearch: Boolean = false
+        useWebSearch: Boolean = false,
+        answerMode: Boolean = false
     ): Result<GenerateResult> {
         var connection: HttpURLConnection? = null
         return try {
@@ -227,8 +229,11 @@ class GeminiClient {
                 put("systemInstruction", JSONObject().apply {
                     put("parts", JSONArray().apply {
                         put(JSONObject().apply {
-                            put("text", if (history != null) ApiClientUtils.chatSystemPrompt(prompt)
-                                else ApiClientUtils.SYSTEM_PROMPT_PREFIX + prompt)
+                            put("text", when {
+                                answerMode -> ApiClientUtils.answerSystemPrompt(prompt)
+                                history != null -> ApiClientUtils.chatSystemPrompt(prompt)
+                                else -> ApiClientUtils.SYSTEM_PROMPT_PREFIX + prompt
+                            })
                         })
                     })
                 })
@@ -246,7 +251,7 @@ class GeminiClient {
                         put("role", "user")
                         put("parts", JSONArray().apply {
                             put(JSONObject().apply {
-                                put("text", if (history != null) text else ApiClientUtils.wrapUserText(text))
+                                put("text", if (history != null || answerMode) text else ApiClientUtils.wrapUserText(text))
                             })
                         })
                     })

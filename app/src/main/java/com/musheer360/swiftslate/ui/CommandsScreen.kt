@@ -68,6 +68,7 @@ fun CommandsScreen(commandManager: CommandManager) {
     var commandToDelete by remember { mutableStateOf<String?>(null) }
     var isFormExpanded by rememberSaveable { mutableStateOf(false) }
     var keepHistory by rememberSaveable { mutableStateOf(false) }
+    var webSearch by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val historyManager = remember { HistoryManager(context.applicationContext) }
     // Bumped after a history change so the "N messages" counts re-read from storage.
@@ -237,6 +238,14 @@ fun CommandsScreen(commandManager: CommandManager) {
                                             color = MaterialTheme.colorScheme.tertiary
                                         )
                                     }
+                                    if (cmd.webSearch) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.commands_web_badge),
+                                            fontSize = rhythm.bodySize,
+                                            color = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    }
                                     if (!cmd.isBuiltIn) {
                                         Spacer(modifier = Modifier.weight(1f))
                                         Text(
@@ -253,6 +262,7 @@ fun CommandsScreen(commandManager: CommandManager) {
                                                 prompt = cmd.prompt
                                                 selectedType = cmd.type
                                                 keepHistory = cmd.keepHistory
+                                                webSearch = cmd.webSearch
                                                 editingTrigger = cmd.trigger
                                                 errorMessage = null
                                                 isFormExpanded = true
@@ -488,6 +498,32 @@ fun CommandsScreen(commandManager: CommandManager) {
                                 }
                             )
                         }
+                        Spacer(modifier = Modifier.height(rhythm.formGap))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                                Text(
+                                    text = stringResource(R.string.commands_web_label),
+                                    fontSize = rhythm.emphasisSize,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = stringResource(R.string.commands_web_desc),
+                                    fontSize = rhythm.bodySize,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = webSearch,
+                                onCheckedChange = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    webSearch = it
+                                }
+                            )
+                        }
                     }
                     errorMessage?.let { msg ->
                         Text(
@@ -507,6 +543,7 @@ fun CommandsScreen(commandManager: CommandManager) {
                                 editingTrigger = null
                                 selectedType = CommandType.AI
                                 keepHistory = false
+                                webSearch = false
                                 isFormExpanded = false
                             },
                             modifier = Modifier.fillMaxWidth()
@@ -546,9 +583,10 @@ fun CommandsScreen(commandManager: CommandManager) {
                                 // Single atomic write: replaces the command being edited (or the
                                 // same trigger, when adding) without a delete-then-add window.
                                 val historyOn = keepHistory && selectedType == CommandType.AI
+                                val webOn = webSearch && selectedType == CommandType.AI
                                 val oldTrigger = editingTrigger
                                 val saved = commandManager.saveCustomCommand(
-                                    command = Command(trimmedTrigger, prompt.trim(), false, selectedType, keepHistory = historyOn),
+                                    command = Command(trimmedTrigger, prompt.trim(), false, selectedType, keepHistory = historyOn, webSearch = webOn),
                                     replacing = oldTrigger ?: trimmedTrigger
                                 )
                                 commands = commandManager.getCommands()
@@ -567,6 +605,7 @@ fun CommandsScreen(commandManager: CommandManager) {
                                 editingTrigger = null
                                 selectedType = CommandType.AI
                                 keepHistory = false
+                                webSearch = false
                                 isFormExpanded = false
                             }
                         },
@@ -599,6 +638,7 @@ fun CommandsScreen(commandManager: CommandManager) {
                         editingTrigger = null
                         selectedType = CommandType.AI
                         keepHistory = false
+                        webSearch = false
                         isFormExpanded = false
                     }
                     commands = commandManager.getCommands()
